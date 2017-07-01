@@ -1,0 +1,22 @@
+LIBRARY	"_inmm"
+
+EXPORTS
+mciSendCommandA = mciSendCommandA
+timeBeginPeriod = timeBeginPeriod
+timeEndPeriod = timeEndPeriod
+timeGetDevCaps = timeGetDevCaps
+timeGetTime = timeGetTime
+timeKillEvent = timeKillEvent
+timeSetEvent = timeSetEvent
+waveOutOpen = waveOutOpen
+waveOutClose = waveOutClose
+waveOutPrepareHeader = waveOutPrepareHeader
+waveOutUnprepareHeader = waveOutUnprepareHeader
+waveOutWrite = waveOutWrite
+waveOutGetNumDevs = waveOutGetNumDevs
+waveOutGetDevCapsW = waveOutGetDevCapsW
+waveOutGetErrorTextW = waveOutGetErrorTextW
+waveInGetNumDevs = waveInGetNumDevs
+waveInGetDevCapsW = waveInGetDevCapsW
+waveInOpen = waveInOpen
+waveInClose = waveInClose
