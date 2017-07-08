@@ -102,7 +102,7 @@ unsigned char __fastcall LoadCharInfoPhase1(unsigned char* str, int index, BYTE*
     else
     {
         unsigned char fc = str[index];
-        if (fc < 128)
+        if (fc < 128 || fc == 0xa4)
         {
             // let ascii go
         }
@@ -186,7 +186,7 @@ void* __fastcall LoadCharInfoPhase2(unsigned char* str, int index, BYTE*** pppCh
         {
             returnValue = nullptr;
         }
-        else if (fc < 128)
+        else if (fc < 128 || fc == 0xa4)
         {
             // ascii
             returnValue = ppCharInfoHolder[(unsigned)fc];
@@ -441,6 +441,12 @@ DEF_HOOK(BreakLine_Inc, 0x010A3346, 0x010A334B)
         regs.esi++;
     }
 }
+
+DEF_PATCH(BreakLine_Inc2)
+{
+    injector::MakeRangedNOP(MEM_TRANS(0x010A3328), MEM_TRANS(0x010A3329));
+}
+
 
 
 DEF_PATCH(BreakLine_Dec)
