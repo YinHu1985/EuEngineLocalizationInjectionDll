@@ -299,8 +299,8 @@ DEF_HOOK(LoadCharInfoPhase2Hook_4, 0x010C6B59, 0x010C6B60)
 // instant box
 DEF_HOOK(LoadCharInfoPhase1Hook_5, 0x010C2860, 0x010C286C)
 {
-    static char* addr1 = MEM_TRANS(0x187FEA8);
-    static char* addr2 = MEM_TRANS(0x187FDA8);
+    static char* addr1 = MEM_TRANS(0x187EEA8);
+    static char* addr2 = MEM_TRANS(0x187EDA8);
 
     // MOV BYTE PTR DS:[ESI+187FDA8],AL
     unsigned char c = VALUE(addr1 + regs.edi);
@@ -310,13 +310,13 @@ DEF_HOOK(LoadCharInfoPhase1Hook_5, 0x010C2860, 0x010C286C)
 
 DEF_HOOK(LoadCharInfoPhase2Hook_5, 0x010C2A2E, 0x010C2A34)
 {
-    static char* addr1 = MEM_TRANS(0x187FEA8);
+    static char* addr1 = MEM_TRANS(0x187EEA8);
     regs.ecx = (uint32_t)LoadCharInfoPhase2((uint32_t)addr1, regs.edi, regs.edx, 0);
 }
 
 DEF_HOOK(LoadCharInfoPhase1Hook_6, 0x010C341A, 0x010C3422)
 {
-    static char* addr1 = MEM_TRANS(0x1880AA8);
+    static char* addr1 = MEM_TRANS(0x187FAA8);
     unsigned char c = LoadCharInfoPhase1((uint32_t)addr1, regs.edi, '6', 0);
     regs.eax = c;
     CMP(c, 0xa7, regs);
@@ -325,7 +325,7 @@ DEF_HOOK(LoadCharInfoPhase1Hook_6, 0x010C341A, 0x010C3422)
 
 DEF_HOOK(LoadCharInfoPhase2Hook_6, 0x010C3942, 0x010C3948)
 {
-    static char* addr1 = MEM_TRANS(0x1880AA8);
+    static char* addr1 = MEM_TRANS(0x187FAA8);
     regs.esi = (uint32_t)LoadCharInfoPhase2((uint32_t)addr1, regs.edi, regs.edx, 0);
     VALUE(regs.ebp + 0x34) = regs.esi;
 }
