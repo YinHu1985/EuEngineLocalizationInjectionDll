@@ -55,7 +55,7 @@ void __fastcall InitCharInfoArray(BYTE*** pppCharBase, DWORD index, BYTE* pCharI
         BYTE** ppOriginalCharInfoHolder = (BYTE**)pppCharBase;
         ppOriginalCharInfoHolder[0x20] = pCharInfo;
     }
-    else if (index == 0x40)
+    else if (index == 0x78)
     {
         // fill the regular space with the info of 0x40 ('@') to detect errors
         BYTE** ppOriginalCharInfoHolder = (BYTE**)pppCharBase;
@@ -73,20 +73,24 @@ inline void __fastcall InitCharInfoArray(uint32_t a, uint32_t b, uint32_t c)
     InitCharInfoArray((BYTE***)a, (DWORD)b, (BYTE*)c);
 }
 
+__declspec(thread) DWORD t_lastCharInfo;
+__declspec(thread) unsigned char t_sub;
 // Check if the character is part of a Chinese character or not. 
 // If it is, substitute it to a dummy character to bypass all special symbol checks.
 // return the fake character.
-unsigned char __fastcall LoadCharInfoPhase1(unsigned char* str, int index, BYTE*** pppCharBase, int /*flag*/)
+__declspec(noinline) unsigned char __fastcall  LoadCharInfoPhase1(unsigned char* str, int index, const char sp, int /*flag*/)
 {
     // pppCharBase is the address of where the 0x00 character charinfo suppose to stay if it was not crasked.
     // ppCharInfoHolder is a 65535 * sizeof(byte*) array.
-    BYTE** ppCharInfoHolder = *pppCharBase;
+  //  BYTE** ppCharInfoHolder = *pppCharBase;
     // ppCharInfoHolder[0] (not *ppCharInfoHolder[0]) will store info about last character info.
     // ppCharInfoHolder[1] (not *ppCharInfoHolder[1]) will store the substituted char.
     // ppCharInfoHolder[2] to ppCharInfoHolder[6] (not *ppCharInfoHolder[1], etc) will be used for a temporary fake character info if necessary.
-    DWORD& lastCharInfo = (DWORD&)(ppCharInfoHolder[0]);
-    unsigned char& sub = (unsigned char&)(ppCharInfoHolder[1]);
-    BYTE* fakeChar = (BYTE*)&ppCharInfoHolder[2];
+   // DWORD& lastCharInfo = (DWORD&)(ppCharInfoHolder[0]);
+    DWORD& lastCharInfo = t_lastCharInfo;
+   // unsigned char& sub = (unsigned char&)(ppCharInfoHolder[1]);
+    unsigned char& sub = t_sub;
+  //  BYTE* fakeChar = (BYTE*)&ppCharInfoHolder[2];
 
     // always clear the sub character;
     sub = 0;
@@ -97,7 +101,7 @@ unsigned char __fastcall LoadCharInfoPhase1(unsigned char* str, int index, BYTE*
         // second character of a Chinese character.
         // substitute the character and let the phase 2 process the rest.
         sub = str[index];
-        str[index] = 0x2e;
+        str[index] = sp;
     }
     else
     {
@@ -118,26 +122,25 @@ unsigned char __fastcall LoadCharInfoPhase1(unsigned char* str, int index, BYTE*
                 {
                     // 0xa3/0xa4/0xa7 + larger than 128 second byte: probably a chinese character.
                     sub = str[index];
-                    str[index] = 0x2e;
+                    str[index] = sp;
                 }
             }
             else
             {
                 // probably Chinese character
                 sub = str[index];
-                str[index] = 0x2e;
+                str[index] = sp;
             }
         }
     }
-
     return str[index];
 }
 inline unsigned char __fastcall LoadCharInfoPhase1(uint32_t str, uint32_t index, uint32_t pppCharBase, uint32_t flag)
 {
-    return LoadCharInfoPhase1((unsigned char* )str, (int) index, (BYTE***) pppCharBase, (int) flag);
+    return LoadCharInfoPhase1((unsigned char* )str, (int) index, (const char) pppCharBase, (int) flag);
 }
 
-void* __fastcall LoadCharInfoPhase2(unsigned char* str, int index, BYTE*** pppCharBase, int flag)
+__declspec(noinline) void* __fastcall LoadCharInfoPhase2(unsigned char* str, int index, BYTE*** pppCharBase, int flag)
 {
     // pppCharBase is the address of where the 0x00 character charinfo suppose to stay if it was not crasked.
     // ppCharInfoHolder is a 65535 * sizeof(byte*) array.
@@ -146,8 +149,10 @@ void* __fastcall LoadCharInfoPhase2(unsigned char* str, int index, BYTE*** pppCh
     // ppCharInfoHolder[0] (not *ppCharInfoHolder[0]) will store info about last character info.
     // ppCharInfoHolder[1] (not *ppCharInfoHolder[1]) will store the substituted char.
     // ppCharInfoHolder[2] to ppCharInfoHolder[6] (not *ppCharInfoHolder[1], etc) will be used for a temporary fake character info if necessary.
-    DWORD& lastCharInfo = (DWORD&)(ppCharInfoHolder[0]);
-    unsigned char& sub = (unsigned char&)(ppCharInfoHolder[1]);
+   // DWORD& lastCharInfo = (DWORD&)(ppCharInfoHolder[0]);
+    DWORD& lastCharInfo = t_lastCharInfo;
+   // unsigned char& sub = (unsigned char&)(ppCharInfoHolder[1]);
+    unsigned char& sub = t_sub;
     BYTE* fakeChar = (BYTE*)&ppCharInfoHolder[2];
 
     // recover substituted character
@@ -156,6 +161,7 @@ void* __fastcall LoadCharInfoPhase2(unsigned char* str, int index, BYTE*** pppCh
         str[index] = sub;
         sub = 0;
     }
+
     if (index == 0)
         lastCharInfo = 0;
     if (lastCharInfo != 0)
@@ -257,7 +263,7 @@ DEF_HOOK(InitCharInfoArrayHook, 0x010C047B, 0x010C0482)
 // button, floating window
 DEF_HOOK(LoadCharInfoPhase1Hook, 0x010C0771, 0x010C0776)
 {
-    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.esi, regs.edi + CHAR_INFO_OFFSET, 0);
+    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.esi, '1', 0);
     CMP(c, 0xa7, regs);
 }
 
@@ -268,7 +274,7 @@ DEF_HOOK(LoadCharInfoPhase2Hook, 0x010C0B49, 0x010C0B56)
 
 DEF_HOOK(LoadCharInfoPhase1Hook_2, 0x010C1749, 0x010C1750)
 {
-    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.edi, VALUE(regs.ebp - 0x8c), 0);
+    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.edi, '2', 0);
     CMP(c, 0xa7, regs);
     regs.eax = (regs.ebp - 0x48);
 }
@@ -299,7 +305,7 @@ DEF_HOOK(LoadCharInfoPhase1Hook_5, 0x010C2860, 0x010C286C)
     // MOV BYTE PTR DS:[ESI+187FDA8],AL
     unsigned char c = VALUE(addr1 + regs.edi);
     VALUE(addr2 + regs.esi) = c;
-    regs.eax = LoadCharInfoPhase1((uint32_t)addr1, regs.edi, VALUE(regs.ebp - 0x34), 0);
+    regs.eax = LoadCharInfoPhase1((uint32_t)addr1, regs.edi, '5', 0);
 }
 
 DEF_HOOK(LoadCharInfoPhase2Hook_5, 0x010C2A2E, 0x010C2A34)
@@ -311,7 +317,7 @@ DEF_HOOK(LoadCharInfoPhase2Hook_5, 0x010C2A2E, 0x010C2A34)
 DEF_HOOK(LoadCharInfoPhase1Hook_6, 0x010C341A, 0x010C3422)
 {
     static char* addr1 = MEM_TRANS(0x1880AA8);
-    unsigned char c = LoadCharInfoPhase1((uint32_t)addr1, regs.edi, VALUE(regs.ebp - 0x34), 0);
+    unsigned char c = LoadCharInfoPhase1((uint32_t)addr1, regs.edi, '6', 0);
     regs.eax = c;
     CMP(c, 0xa7, regs);
 
@@ -328,7 +334,7 @@ DEF_HOOK(LoadCharInfoPhase2Hook_6, 0x010C3942, 0x010C3948)
  // ?? effect,maybe get height???
 DEF_HOOK(LoadCharInfoPhase1Hook_7, 0x010C4578, 0x010C457E)
 {
-    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.esi, regs.edx, 0);
+    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.esi, '7', 0);
     static char* addr1 = MEM_TRANS(0x010C4584);
     //JNE SHORT 010C4584
     // Modify return address to do the trick
@@ -346,7 +352,7 @@ DEF_HOOK(LoadCharInfoPhase2Hook_7, 0x010C474C, 0x010C4753)
 // get width
 DEF_HOOK(LoadCharInfoPhase1Hook_8, 0x010C490C, 0x010C4911)
 {
-    unsigned char c = LoadCharInfoPhase1(regs.edi, regs.esi, regs.ecx+ CHAR_INFO_OFFSET, 0);
+    unsigned char c = LoadCharInfoPhase1(regs.edi, regs.esi, '8', 0);
     regs.eax = c;
     CMP(c, 0xa7, regs);
 }
@@ -360,7 +366,7 @@ DEF_HOOK(LoadCharInfoPhase2Hook_8, 0x010C49CC, 0x010C49D2)
 DEF_HOOK(LoadCharInfoPhase1Hook_9, 0x010C5A34, 0x010C5A39)
 {
 
-    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.edi, regs.ebx + CHAR_INFO_OFFSET, 0);
+    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.edi, '9', 0);
     regs.eax = c;
     CMP(c, 0xa7, regs);
 }
@@ -372,7 +378,7 @@ DEF_HOOK(LoadCharInfoPhase2Hook_9, 0x010C5B8E, 0x010C5B9B)
 
 DEF_HOOK(LoadCharInfoPhase1Hook_10, 0x010C5F02, 0x010C5F09)
 {
-    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.esi, VALUE(regs.ebp - 0x10) + CHAR_INFO_OFFSET, 0);
+    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.esi, 'a', 0);
     regs.eax = regs.ebp -0x38;
     CMP(c, 0xa7, regs);
 
@@ -383,10 +389,10 @@ DEF_HOOK(LoadCharInfoPhase2Hook_10, 0x010C6149, 0x010C6150)
     regs.edx = (uint32_t)LoadCharInfoPhase2(regs.eax, regs.esi, regs.edx, 0);
 }
 
-//??
+//?? main map will also use this
 DEF_HOOK(LoadCharInfoPhase1Hook_11, 0x010C715D, 0x010C7163)
 {
-    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.edi, VALUE(regs.ebp - 0x2c), 0);
+    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.edi, 'b', 0);
     static char* addr1 = MEM_TRANS(0x010C7169);
     //JNE SHORT 010C7169
     // Modify return address to do the trick
@@ -403,7 +409,7 @@ DEF_HOOK(LoadCharInfoPhase2Hook_11, 0x010C72EE, 0x010C72F8)
 //??
 DEF_HOOK(LoadCharInfoPhase1Hook_12, 0x010C77CB, 0x010C77D0)
 {
-    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.esi, VALUE(regs.ebp - 0x1c), 0);
+    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.esi, 'c', 0);
     regs.eax = c;
     CMP(c, 0xa7, regs);
 
@@ -417,7 +423,7 @@ DEF_HOOK(LoadCharInfoPhase2Hook_12, 0x010C797B, 0x010C7987)
 //??
 DEF_HOOK(LoadCharInfoPhase1Hook_13, 0x010C7D08, 0x010C7D0D)
 {
-    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.esi, VALUE(regs.ebp + 0x14), 0);
+    unsigned char c = LoadCharInfoPhase1(regs.eax, regs.esi, 'd', 0);
     regs.eax = c;
     CMP(c, 0xa7, regs);
 
@@ -527,6 +533,10 @@ DEF_PATCH(UTF_YML)
     injector::MakeJMP(MEM_TRANS(0x01232E80), Utf8ToGB2);
 }
 
+DEF_PATCH(TEXTURE_LIMIT)
+{
+    injector::MakeJMP(MEM_TRANS(0x0117AA4E), MEM_TRANS(0x0117AA65));
+}
 
 void ExtraPatch()
 {
